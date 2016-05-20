@@ -3020,15 +3020,17 @@ H323RegisteredEndPoint * H323GatekeeperServer::CreateRegisteredEndPoint(H323Gate
   return new H323RegisteredEndPoint(*this, CreateEndPointIdentifier());
 }
 
-
 PString H323GatekeeperServer::CreateEndPointIdentifier()
 {
-  PStringStream id;
-  PWaitAndSignal wait(mutex);
-  id << hex << identifierBase << ':' << nextIdentifier++;
-  return id;
-}
+    PStringStream id;
+    PWaitAndSignal wait(mutex);
+    id << hex << identifierBase << ':' << nextIdentifier++;
+    const bool result = id.MakeMinimumSize(id.GetLength());
+    PTRACE(4, "RAS\tid.MakeMinimumSize(id.GetLength()) = " << result
+                << "; size = " << id.GetSize());
 
+    return id;
+}
 
 PSafePtr<H323RegisteredEndPoint> H323GatekeeperServer::FindEndPointByIdentifier(
                                             const PString & identifier, PSafetyMode mode)
