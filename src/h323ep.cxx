@@ -1716,21 +1716,20 @@ PBoolean H323EndPoint::StartListener(H323Listener * listener)
     }
   }
 
-  // as the listener is not open, this will have the effect of immediately
-  // stopping the listener thread. This is good - it means that the 
-  // listener Close function will appear to have stopped the thread
-  if (!listener->Open()) {
-    // set the thread running so we can delete it later
+    if (!listener->Open())
+    {
+        // don't start thread because it HAVE TO BE deleted
+        // by the caller. If it would be started here then
+        // the crash with 'pure virtual method call' may be produced.
+        return FALSE;
+    }
+
+    PTRACE(3, "H323\tStarted " << *listener);
+    listeners.Append(listener);
     listener->Resume();
-    return FALSE;
-  }
 
-  PTRACE(3, "H323\tStarted " << *listener);
-  listeners.Append(listener);
-  listener->Resume();
-  return TRUE;
+    return TRUE;
 }
-
 
 PBoolean H323EndPoint::RemoveListener(H323Listener * listener)
 {
@@ -4180,7 +4179,7 @@ PBoolean H323EndPoint::TLS_Initialise(const PIPSocket::Address & binding, WORD p
         StartListener(listener);
     }
 
-    return true;   
+    return true;
 }
 
 PBoolean H323EndPoint::InitialiseTransportContext()
