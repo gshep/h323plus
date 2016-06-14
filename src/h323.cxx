@@ -39,6 +39,8 @@
 #include "h323ep.h"
 #include "h323neg.h"
 #include "h323rtp.h"
+#include "etc/utils.hpp"
+#include "etc/DUMPEXPRESSION.hpp"
 
 #ifdef H323_H450
 #include "h450/h4501.h"
@@ -4828,11 +4830,12 @@ PBoolean H323Connection::OnStartLogicalChannel(H323Channel & channel)
   }
 
 #ifdef H323_H239
-  if ((channel.GetCapability().GetMainType() == H323Capability::e_Video) && 
-      (channel.GetCapability().GetSubType() == H245_VideoCapability::e_extendedVideoCapability)) {
-          OnH239SessionStarted(channel.GetNumber(), 
-                channel.GetNumber().IsFromRemote() ? H323Capability::e_Receive : H323Capability::e_Transmit);
-  }
+    H323ChannelNumber const & channelNumber = channel.GetNumber();
+    if (h323p::isExtendedVideoCapability(channel.GetCapability())
+        && channelNumber.IsFromRemote())
+    {
+        OnH239SessionStarted(channelNumber, H323Capability::e_Receive);
+    }
 #endif
 
   return endpoint.OnStartLogicalChannel(*this, channel);
@@ -7382,15 +7385,29 @@ PBoolean H323Connection::AcceptH239ControlRequest(PBoolean & delay)
 
 PBoolean H323Connection::OnH239ControlRequest(H239Control * ctrl)
 {
-    if (!ctrl) 
+    if (!ctrl)
+    {
         return false;
+    }
 
     PBoolean delay = false;
-    if (AcceptH239ControlRequest(delay)) {
-      if (delay) return true;
-      return ctrl->SendGenericMessage(H239Control::e_h245response, this, true);
-    }  else 
-      return ctrl->SendGenericMessage(H239Control::e_h245response, this, false);
+    if (AcceptH239ControlRequest(delay))
+    {
+        if (delay)
+        {
+            return true;
+        }
+
+        return ctrl->SendGenericMessage(H239Control::e_h245response, this, true);
+    }
+
+    return ctrl->SendGenericMessage(H239Control::e_h245response, this, false);
+}
+
+PBoolean H323Connection::OnH239ControlResponse(H239Control & /*control_*/,
+                                               H245_ArrayOf_GenericParameter const & /*content_*/)
+{
+    return true;
 }
 
 PBoolean H323Connection::OnH239ControlCommand(H239Control * ctrl)
@@ -7422,29 +7439,32 @@ PBoolean H323Connection::CloseH239Channel(H323Capability::CapabilityDirection di
   return false;
 }
 
-void H323Connection::OnH239SessionStarted(int sessionNum, H323Capability::CapabilityDirection dir) 
+void H323Connection::OnH239SessionStarted(const int channelNumber_,
+                                          const H323Capability::CapabilityDirection direction_)
 {
-  if (!sessionNum)
+    PTRACE(3, "H323Connection::OnH239SessionStarted\t" << DUMPEXPRESSION(channelNumber_)
+                << ", " << DUMPEXPRESSION(direction_));
+
+  if (!channelNumber_)
       return;
 
   H239Control * ctrl = (H239Control *)remoteCapabilities.FindCapability("H.239 Control");
   if (ctrl)
-     return ctrl->SetChannelNum(sessionNum,dir);
+     return ctrl->SetChannelNum(channelNumber_, direction_);
 }
 
-void H323Connection::OnH239SessionEnded(int sessionNum, H323Capability::CapabilityDirection dir) 
+void H323Connection::OnH239SessionEnded(const int channelNumber_,
+                                        const H323Capability::CapabilityDirection direction_)
 {
-  if (!sessionNum)
+    PTRACE(3, "H323Connection::OnH239SessionEnded\t" << DUMPEXPRESSION(channelNumber_)
+                << ", " << DUMPEXPRESSION(direction_));
+
+  if (!channelNumber_)
       return;
 
   H239Control * ctrl = (H239Control *)remoteCapabilities.FindCapability("H.239 Control");
   if (ctrl)
-     return ctrl->SetChannelNum(0,dir);
-}
-
-void H323Connection::OpenExtendedVideoSessionDenied()
-{
-    PTRACE(2,"H239\tOpen Request denied from remote");
+     return ctrl->SetChannelNum(0, direction_);
 }
 
 PBoolean H323Connection::OpenExtendedVideoSession(H323ChannelNumber & num, int defaultSession)

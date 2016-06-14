@@ -1861,62 +1861,21 @@ bool OnH239GenericMessageRequest(H239Control & ctrl, H323Connection & connection
     return connection.OnH239ControlRequest(&ctrl);
 }
 
-PBoolean OnH239GenericMessageResponse(H239Control & ctrl, H323Connection & connection, const H245_ArrayOf_GenericParameter & content)
+PBoolean OnH239GenericMessageResponse(H239Control & ctrl,
+                                      H323Connection & connection,
+                                      H245_ArrayOf_GenericParameter const & content)
 {
-    PTRACE(4,"H239\tReceived Generic Response.");
+    PTRACE(4, "H239\tReceived Generic Response.");
 
-    bool m_allowOutgoingExtVideo=true;
-    unsigned channelID=0;
-    int defaultSession=0;
-    for (int i = 0; i < content.GetSize(); ++i)
-    {
-        H245_GenericParameter& param = content[i];
-        switch ((PASN_Integer)param.m_parameterIdentifier)
-        {
-        case H239Control::h239gpChannelId:
-            channelID = (PASN_Integer)param.m_parameterValue;
- /*           if (channelID == ctrl.GetChannelNum(H323Capability::e_Receive)) {
-               PTRACE(4,"H239\tRec'd Response for Receive side. Close Receive Channel!");
-               ctrl.SendGenericMessage(H239Control::e_h245command, &connection, false);
-               defaultSession = ctrl.GetRequestedChanNum();
-            } */
-            break;
-        case H239Control::h239gpAcknowledge:
-            break;
-        case H239Control::h239gpReject:
-            connection.OpenExtendedVideoSessionDenied();
-            m_allowOutgoingExtVideo = false;
-            break;
-        case H239Control::h239gpBitRate:
-        case H239Control::h239gpSymmetryBreaking:
-        case H239Control::h239gpTerminalLabel:
-            break;
-        default:
-            m_allowOutgoingExtVideo = false;
-            break;
-        }
-    }
-
-    if (channelID > 0 && channelID == ctrl.GetChannelNum(H323Capability::e_Transmit)) {
-       PTRACE(4,"H239\tLate Acknowledge IGNORE");
-       m_allowOutgoingExtVideo = false;
-    }
-
-    if (m_allowOutgoingExtVideo)
-        return connection.OpenExtendedVideoSession(ctrl.GetChannelNum(H323Capability::e_Transmit), defaultSession);
-
-    return true;
+    return connection.OnH239ControlResponse(ctrl, content);
 }
-
 
 PBoolean OnH239GenericMessageCommand(H239Control & ctrl, H323Connection & connection, const H245_ArrayOf_GenericParameter & content)
 {
     PTRACE(4,"H239\tReceived Generic Command.");
 
-    return connection.OnH239ControlCommand(&ctrl);   
+    return connection.OnH239ControlCommand(&ctrl);
 }
-
-///////////////////////////////////////////
 
 H323ControlExtendedVideoCapability::H323ControlExtendedVideoCapability()
   : H323ExtendedVideoCapability(OpalPluginCodec_Identifer_H239)

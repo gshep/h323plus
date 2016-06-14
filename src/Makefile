@@ -314,6 +314,9 @@ HEADER_FILES	+= $(OH323_INCDIR)/etc/h323aec.h
 COMMON_SOURCES	+= $(OH323_SRCDIR)/etc/h323aec.cxx
 endif
 
+HEADER_FILES	+= $(OH323_INCDIR)/etc/utils.hpp
+COMMON_SOURCES	+= $(OH323_SRCDIR)/etc/utils.cxx
+
 ########### GNUGK
 
 ifdef H323_GNUGK

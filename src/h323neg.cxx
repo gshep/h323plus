@@ -39,6 +39,7 @@
 #include "h323neg.h"
 
 #include "h323ep.h"
+#include "etc/utils.hpp"
 
 #include <ptclib/random.h>
 
@@ -732,49 +733,60 @@ PBoolean H245NegLogicalChannel::HandleOpen(const H245_OpenLogicalChannel & pdu)
 
 PBoolean H245NegLogicalChannel::HandleOpenAck(const H245_OpenLogicalChannelAck & pdu)
 {
-  replyTimer.Stop(false);
-  PWaitAndSignal wait(mutex);
+    replyTimer.Stop(false);
+    PWaitAndSignal wait(mutex);
 
-  PTRACE(3, "H245\tReceived open channel ack: " << channelNumber << ", state=" << state);
+    PTRACE(3, "H245\tReceived open channel ack: " << channelNumber << ", state=" << state);
 
-  switch (state) {
-    case e_Released :
-      return connection.OnControlProtocolError(H323Connection::e_LogicalChannel,
-                                               "Ack unknown channel");
-    case e_AwaitingEstablishment :
-      state = e_Established;
+    switch (state)
+    {
+        case e_Released:
+        {
+            return connection.OnControlProtocolError(H323Connection::e_LogicalChannel,
+                                                     "Ack unknown channel");
+        }
 
-      if (!channel->OnReceivedAckPDU(pdu))
-        return CloseWhileLocked();
-      
-      // If extended Video channel, then send Channel Active
-      if (channel->GetCapability().GetMainType() == H323Capability::e_Video && 
-		 channel->GetCapability().GetSubType() == H245_VideoCapability::e_extendedVideoCapability) {
-         H323ControlPDU reply;
-         reply.BuildLogicalChannelActive(channelNumber);
-         if (!connection.WriteControlPDU(reply))
-                 return FALSE;
-      }
+        case e_AwaitingEstablishment:
+        {
+            state = e_Established;
 
-      if (channel->GetDirection() == H323Channel::IsBidirectional) {
-        H323ControlPDU reply;
-        reply.BuildOpenLogicalChannelConfirm(channelNumber);
-        if (!connection.WriteControlPDU(reply))
-          return FALSE;
-      }
+            if (!channel->OnReceivedAckPDU(pdu))
+            {
+                return CloseWhileLocked();
+            }
 
-      // Channel was already opened when OLC sent, if have error here it is
-      // somthing other than an asymmetric codec conflict, so close it down.
-      if (!channel->Start())
-        return CloseWhileLocked();
+            if (h323p::isExtendedVideoCapability(channel->GetCapability()))
+            {
+                H323ControlPDU reply;
+                reply.BuildLogicalChannelActive(channelNumber);
+                if (!connection.WriteControlPDU(reply))
+                {
+                    return FALSE;
+                }
 
-    default :
-      break;
-  }
+                H323ChannelNumber const & channelNumber(channel->GetNumber());
+                connection.OnH239SessionStarted(channelNumber, H323Capability::e_Transmit);
+            }
 
-  return TRUE;
+            if (channel->GetDirection() == H323Channel::IsBidirectional) {
+                H323ControlPDU reply;
+                reply.BuildOpenLogicalChannelConfirm(channelNumber);
+                if (!connection.WriteControlPDU(reply))
+                    return FALSE;
+            }
+
+            // Channel was already opened when OLC sent, if have error here it is
+            // somthing other than an asymmetric codec conflict, so close it down.
+            if (!channel->Start())
+                return CloseWhileLocked();
+        }
+
+        default:
+            break;
+    }
+
+    return TRUE;
 }
-
 
 PBoolean H245NegLogicalChannel::HandleOpenConfirm(const H245_OpenLogicalChannelConfirm & /*pdu*/)
 {

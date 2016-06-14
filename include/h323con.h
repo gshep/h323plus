@@ -1682,35 +1682,27 @@ class H323Connection : public PObject
       */
     PBoolean OpenH239Channel();
 
-    /** Close a H.239 Channel
+    /** Close a H.239 Channel. This will call @link{CloseExtendedVideoSession}.
      */
     PBoolean CloseH239Channel(H323Capability::CapabilityDirection dir =  H323Capability::e_Transmit);
 
     /** Callback when a H239 Session
         has been started
       */
-    virtual void OnH239SessionStarted(
-       int sessionNum,   ///< Channel Number opened
-       H323Capability::CapabilityDirection dir ///< Direction of Channel
-    );
+    virtual void OnH239SessionStarted(const int channelNumber_,
+                                      const H323Capability::CapabilityDirection direction_);
 
     /** Callback when a H239 Session
         has been ended
       */
-    virtual void OnH239SessionEnded(
-       int sessionNum,   ///< Channel Number to close
-       H323Capability::CapabilityDirection dir ///< Direction of Channel
-    );
-
-
-    /** Request to open session denied event
-      */
-    virtual void OpenExtendedVideoSessionDenied();
+    virtual void OnH239SessionEnded(const int channelNumber_,
+                                    const H323Capability::CapabilityDirection direction_);
 
     /** On Receiving a H.239 Control Request
         Return False to reject the request to open channel.
-        Set Delay to delay opening the channel. 
-        Calling OnH239ControlRequest() will invoke
+        Set @a delay to true to delay opening the channel.
+
+        OnH239ControlRequest() invokes this method.
     */
     virtual PBoolean AcceptH239ControlRequest(PBoolean & delay);
 
@@ -1718,6 +1710,11 @@ class H323Connection : public PObject
         Return False to reject the request to open channel.
     */
     PBoolean OnH239ControlRequest(H239Control * ctrl = NULL);
+
+    /** The callback is called when H.239 response is received.
+    */
+    virtual PBoolean OnH239ControlResponse(H239Control & control_,
+                                           H245_ArrayOf_GenericParameter const & content_);
 
     /** On Receiving a H.239 Control Command
         This usually means the closing of the H.239 Channel
@@ -1731,11 +1728,14 @@ class H323Connection : public PObject
 
     /** On Received an Extended Video OLC
         This indicates the receipt of Extended Video OLC
+
+        @a role 1 - Presentation, 2 - Live
+        @a channelNumber_ Channel number of just opened channel
     */
-    virtual void OnReceivedExtendedVideoSession(
-           unsigned /*role*/,                           ///< role 1-Presentation 2-Live
-           const H323ChannelNumber & /*channelnum*/     ///< Channel number of just opened channel
-    ) const {};
+    virtual void OnReceivedExtendedVideoSession(unsigned int role_,
+                                                H323ChannelNumber const & channelNumber_) const
+    {
+    }
     
     /** Close an Extended Video Session matching the channel number
         This will close the Extended Video matching the channel number (if open)
