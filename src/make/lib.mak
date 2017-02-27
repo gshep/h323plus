@@ -98,7 +98,7 @@ ifeq ($(P_SHAREDLIB),1)
       LDSOOPTS += -Wl,--kill-at
     else
       ifneq ($(OSTYPE),Darwin)
-        LDSOOPTS += -Wl,-soname,$(LIB_SONAME)
+        LDSOOPTS += -Wl,-soname,$(LIB_SONAME) -Wl,-rpath,\$$ORIGIN/
       endif
     endif
   endif

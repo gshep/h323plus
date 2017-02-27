@@ -1274,7 +1274,11 @@ class H323PluginFrameBuffer : public H323_FrameBuffer
 {
 public:
     H323PluginFrameBuffer()
-        : codec(NULL), m_noError(true), m_flowControl(false) {};
+        : codec(NULL)
+        , m_noError(true)
+        , m_flowControl(false)
+    {
+    }
 
     void SetCodec(H323Codec * _codec) { 
         codec = _codec;
@@ -1321,13 +1325,14 @@ protected:
 
 class H323PluginVideoCodec : public H323VideoCodec
 {
-  PCLASSINFO(H323PluginVideoCodec, H323VideoCodec);
-  public:
+    PCLASSINFO(H323PluginVideoCodec, H323VideoCodec)
+
+public:
     H323PluginVideoCodec(const OpalMediaFormat & fmt, Direction direction, 
                          PluginCodec_Definition * _codec, 
                          const H323Capability * cap = NULL
                          );
- 
+
     ~H323PluginVideoCodec();
 
     virtual PBoolean Open(
@@ -1616,9 +1621,10 @@ H323PluginVideoCodec::~H323PluginVideoCodec()
     //PWaitAndSignal mutex(videoHandlerActive);
 
 #ifdef H323_FRAMEBUFFER
-    m_frameBuffer.Terminate();
+    m_frameBuffer.Stop();
     m_frameBuffer.WaitForTermination();
 #endif
+
     // Set the buffer memory to zero to prevent
     // memory leak
     bufferRTP.SetSize(0);

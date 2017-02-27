@@ -515,36 +515,43 @@ H225CallThread::H225CallThread(H323EndPoint & endpoint,
   }
 }
 
-
 void H225CallThread::Main()
 {
-  PTRACE(3, "H225\tStarted call thread");
+    PTRACE(3, "H225\tStarted call thread");
 
-  if (connection.Lock()) {
-    H323Connection::CallEndReason reason = connection.SendSignalSetup(alias, address);
+    if (connection.Lock())
+    {
+        H323Connection::CallEndReason reason = connection.SendSignalSetup(alias, address);
 
-    // Special case, if we aborted the call then already will be unlocked
-    if (reason != H323Connection::EndedByCallerAbort)
-      connection.Unlock();
+        // special case, if we aborted the call then already unlocked
+        // for details see comments in SendSignalSetup
+        if (H323Connection::EndedByCallerAbort != reason
+            && H323Connection::EndedByUnreachable != reason
+            && H323Connection::EndedByNoEndPoint != reason
+            && H323Connection::EndedByHostOffline != reason)
+        {
+            connection.Unlock();
+        }
 
-    // Check if had an error, clear call if so
-    if (reason != H323Connection::NumCallEndReasons)
-      connection.ClearCall(reason);
-    else {
+        // Check if had an error, clear call if so
+        if (reason != H323Connection::NumCallEndReasons)
+        {
+            connection.ClearCall(reason);
+        }
+        else
+        {
 #ifdef H323_SIGNAL_AGGREGATE
-      if (useAggregator) {
-        connection.AggregateSignalChannel(&transport);
-        SetAutoDelete(AutoDeleteThread);
-        return;
-      }
+            if (useAggregator)
+            {
+                connection.AggregateSignalChannel(&transport);
+                SetAutoDelete(AutoDeleteThread);
+                return;
+            }
 #endif
-      connection.HandleSignallingChannel();
+            connection.HandleSignallingChannel();
+        }
     }
-  }
 }
-
-
-/////////////////////////////////////////////////////////////////////////////
 
 H323ConnectionsCleaner::H323ConnectionsCleaner(H323EndPoint & ep)
   : PThread(ep.GetCleanerThreadStackSize(),

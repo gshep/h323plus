@@ -2535,54 +2535,85 @@ H323Connection::CallEndReason H323Connection::SendSignalSetup(const PString & al
        Unlock();
   } else
 #endif
-  {
-      if (gatekeeper != NULL) {
-          if (signallingChannel->InitialiseSecurity(&m_transportSecurity) &&
-              !m_transportSecurity.GetRemoteTLSAddress().IsEmpty()) {
-              gatekeeperRoute = m_transportSecurity.GetRemoteTLSAddress();
-              PTRACE(4, "H225\tChanged remote address to secure " << gatekeeperRoute);
-          }
-      } 
-        
-      if (!signallingChannel->IsOpen() && !signallingChannel->SetRemoteAddress(gatekeeperRoute)) {
-        PTRACE(1, "H225\tInvalid "
-               << (gatekeeperRoute != address ? "gatekeeper" : "user")
-               << " supplied address: \"" << gatekeeperRoute << '"');
-        connectionState = AwaitingTransportConnect;
-        return EndedByConnectFail;
-      }
-
-      // Do the transport connect
-      connectionState = AwaitingTransportConnect;
-
-
-      // Release the mutex as can deadlock trying to clear call during connect.
-      Unlock();
-
-      PBoolean connectFailed = false;
-      if (!signallingChannel->IsOpen()) {
-        signallingChannel->SetWriteTimeout(100);
-        connectFailed = !signallingChannel->Connect();
-      }
-
-      // See if transport connect failed, abort if so.
-      if (connectFailed) {
-        connectionState = NoConnectionActive;
-        switch (signallingChannel->GetErrorNumber()) {
-          case ENETUNREACH :
-            return EndedByUnreachable;
-          case ECONNREFUSED :
-            return EndedByNoEndPoint;
-          case ETIMEDOUT :
-            return EndedByHostOffline;
+    {
+        if (gatekeeper != NULL)
+        {
+            if (signallingChannel->InitialiseSecurity(&m_transportSecurity)
+                && !m_transportSecurity.GetRemoteTLSAddress().IsEmpty())
+            {
+                gatekeeperRoute = m_transportSecurity.GetRemoteTLSAddress();
+                PTRACE(4, "H225\tChanged remote address to secure " << gatekeeperRoute);
+            }
         }
-        return EndedByConnectFail;
-      }
-  } 
 
-  // Lock while checking for shutting down.
-  if (!Lock())
-    return EndedByCallerAbort;
+        if (!signallingChannel->IsOpen() && !signallingChannel->SetRemoteAddress(gatekeeperRoute))
+        {
+            PTRACE(1, "H225\tInvalid "
+                   << (gatekeeperRoute != address ? "gatekeeper" : "user")
+                   << " supplied address: \"" << gatekeeperRoute << '"');
+            connectionState = AwaitingTransportConnect;
+
+            // the connection is locked here
+            return EndedByConnectFail;
+        }
+
+        // Do the transport connect
+        connectionState = AwaitingTransportConnect;
+
+        // Release the mutex as can deadlock trying to clear call during connect.
+        Unlock();
+
+        PBoolean connectFailed = false;
+        if (!signallingChannel->IsOpen())
+        {
+            signallingChannel->SetWriteTimeout(100);
+            connectFailed = !signallingChannel->Connect();
+        }
+
+        // See if transport connect failed, abort if so.
+        if (connectFailed)
+        {
+            connectionState = NoConnectionActive;
+            switch (signallingChannel->GetErrorNumber())
+            {
+                case ENETUNREACH:
+                {
+                    return EndedByUnreachable;
+                }
+
+                case ECONNREFUSED:
+                {
+                    return EndedByNoEndPoint;
+                }
+
+                case ETIMEDOUT:
+                {
+                    return EndedByHostOffline;
+                }
+            }
+
+            // yes, it's very weird but we have to do so.
+            // See the code above where EndedByConnectFail is returned. In this case
+            // the connection is locked so caller has to unlock the connection.
+            //
+            // But here the connection was already unlocked, so caller mustn't perform unlocking.
+            //
+            // To sum up both cases - a caller can't distinguish either the connection is locked
+            // or unlocked with the same return-value. So it is...
+            if (!Lock())
+            {
+                return EndedByCallerAbort;
+            }
+
+            return EndedByConnectFail;
+        }
+    }
+
+    // Lock while checking for shutting down.
+    if (!Lock())
+    {
+        return EndedByCallerAbort;
+    }
 
   PTRACE(3, "H225\tSending Setup PDU");
   connectionState = AwaitingSignalConnect;

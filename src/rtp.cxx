@@ -941,6 +941,8 @@ RTP_Session::SendReceiveStatus RTP_Session::OnReceiveData(const RTP_DataFrame & 
 
 PBoolean RTP_Session::SendReport()
 {
+    PTRACE(5, "RTP_UDP\tSession " << sessionID << ", check for sending report.");
+
   PWaitAndSignal mutex(reportMutex);
 
   if (reportTimer.IsRunning())
@@ -1365,15 +1367,23 @@ void RTP_SessionManager::Exit()
 
 static void SetMinBufferSize(PUDPSocket & sock, int buftype)
 {
-  int sz = 0;
-  if (sock.GetOption(buftype, sz)) {
-    if (sz >= UDP_BUFFER_SIZE)
-      return;
-  }
+    // 2MiB
+    const int bufferSize = 2097152;
 
-  if (!sock.SetOption(buftype, UDP_BUFFER_SIZE)) {
-    PTRACE(1, "RTP_UDP\tSetOption(" << buftype << ") failed: " << sock.GetErrorText());
-  }
+    int sz = 0;
+    if (sock.GetOption(buftype, sz))
+    {
+        PTRACE(1, "RTP_UDP\tSetOption; current size = " << sz);
+        if (sz >= bufferSize)
+        {
+            return;
+        }
+    }
+
+    if (!sock.SetOption(buftype, bufferSize))
+    {
+        PTRACE(1, "RTP_UDP\tSetOption(" << buftype << ") failed: " << sock.GetErrorText());
+    }
 }
 
 
@@ -1702,7 +1712,6 @@ PBoolean RTP_UDP::ReadData(RTP_DataFrame & frame, PBoolean loop)
         break;
 
       case 0 :
-        PTRACE(5, "RTP_UDP\tSession " << sessionID << ", check for sending report.");
         if (!SendReport())
           return FALSE;
         break;

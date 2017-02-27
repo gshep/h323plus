@@ -769,7 +769,7 @@ typedef std::priority_queue< std::pair<H323FRAME::Info, PBYTEArray >,
 
 class H323_FrameBuffer : public PThread
 {
-    PCLASSINFO(H323_FrameBuffer, PThread);
+    PCLASSINFO(H323_FrameBuffer, PThread)
 
 protected:
     RTP_Sortedframes  m_buffer;
@@ -796,18 +796,29 @@ protected:
 
 public:
     H323_FrameBuffer()
-    : PThread(10000, NoAutoDeleteThread, HighestPriority), m_threadRunning(false),
-      m_frameMarker(0), m_frameOutput(false), m_frameStartTime(0), 
-      m_StartTimeStamp(0), m_calcClockRate(90),
-      m_packetReceived(0), m_oddTimeCount(0), m_lateThreshold(5.0), m_increaseBuffer(false),
-      m_lossThreshold(1.0), m_lossCount(0), m_frameCount(0), 
-      m_lastSequence(0), m_RenderTimeStamp(0), m_exit(false)
-    {}
+        : PThread(10000, NoAutoDeleteThread, HighestPriority)
+        , m_threadRunning(false)
+        , m_frameMarker(0)
+        , m_frameOutput(false)
+        , m_frameStartTime(0)
+        , m_StartTimeStamp(0)
+        , m_calcClockRate(90)
+        , m_packetReceived(0)
+        , m_oddTimeCount(0)
+        , m_lateThreshold(5.0)
+        , m_increaseBuffer(false)
+        , m_lossThreshold(1.0)
+        , m_lossCount(0)
+        , m_frameCount(0)
+        , m_lastSequence(0)
+        , m_RenderTimeStamp(0)
+        , m_exit(false)
+    {
+    }
 
     ~H323_FrameBuffer()
-    { 
-        if (m_threadRunning)
-            m_exit = true;  
+    {
+        m_exit = true;
     }
 
     void Start()
@@ -816,15 +827,29 @@ public:
         Resume();
     }
 
-    PBoolean IsRunning() 
+    /** Yes, it is not thread-safe nor synchronized but we don't bother about it. Just
+     * call WaitForTermination after Stop was called.
+     */
+    void Stop()
+    {
+        m_exit = true;
+    }
+
+    PBoolean IsRunning()
     {
         return m_threadRunning;
     }
 
-    virtual void FrameOut(PBYTEArray & /*frame*/, PInt64 /*receiveTime*/, unsigned /*clock*/, PBoolean /*fup*/, PBoolean /*flow*/) {};
+    virtual void FrameOut(PBYTEArray & /*frame*/,
+                          PInt64 /*receiveTime*/,
+                          unsigned int /*clock*/,
+                          PBoolean /*fup*/,
+                          PBoolean /*flow*/)
+    {
+    }
 
-    void Main() {
-
+    void Main()
+    {
         PBYTEArray frame;
         PTimeInterval lastMarker;
         int delay=0;

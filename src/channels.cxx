@@ -237,30 +237,27 @@ void H323Channel::CleanUpOnTermination()
   if (codec != NULL)
     codec->Close();
 
-  // If we have a receiver thread, wait for it to die.
-  if (receiveThread != NULL) {
-    PTRACE(4, "LogChan\tAwaiting termination of " << receiveThread << ' ' << receiveThread->GetThreadName());
-    receiveThread->WaitForTermination(5000);
-   // PAssert(receiveThread->WaitForTermination(10000), "Receive media thread did not terminate");
-    delete receiveThread;
-    receiveThread = NULL;
-  }
+    if (receiveThread != NULL)
+    {
+        PTRACE(4, "LogChan\tAwaiting termination of " << receiveThread << ' ' << receiveThread->GetThreadName());
+        receiveThread->WaitForTermination();
+        delete receiveThread;
+        receiveThread = NULL;
+    }
 
-  // If we have a transmitter thread, wait for it to die.
-  if (transmitThread != NULL) {
-    PTRACE(4, "LogChan\tAwaiting termination of " << transmitThread << ' ' << transmitThread->GetThreadName());
-    transmitThread->WaitForTermination(5000);
-   // PAssert(transmitThread->WaitForTermination(10000), "Transmit media thread did not terminate");
-    delete transmitThread;
-    transmitThread = NULL;
-  }
+    if (transmitThread != NULL)
+    {
+        PTRACE(4, "LogChan\tAwaiting termination of " << transmitThread << ' ' << transmitThread->GetThreadName());
+        transmitThread->WaitForTermination();
+        delete transmitThread;
+        transmitThread = NULL;
+    }
 
-  // Signal to the connection that this channel is on the way out
-  connection.OnClosedLogicalChannel(*this);
+    // Signal to the connection that this channel is on the way out
+    connection.OnClosedLogicalChannel(*this);
 
-  PTRACE(3, "LogChan\tCleaned up " << number);
+    PTRACE(3, "LogChan\tCleaned up " << number);
 }
-
 
 PBoolean H323Channel::IsRunning() const
 {
